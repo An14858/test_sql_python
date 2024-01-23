@@ -1,0 +1,50 @@
+# Создадим временную таблицу data, с использованием оконной функции со столбцами count_client_id (id клиентов), contract (договоры клиентов), gender (пол клиента)
+
+mysql> CREATE TEMPORARY TABLE IF NOT EXISTS data AS (SELECT loans_table.client_id as count_client_id, ROW_NUMBER() OVER(partition BY loans_table.client_id ) contract, clients_table.gender
+    -> FROM loans_table, clients_table
+    -> WHERE loans_table.client_id = clients_table.client_id
+    -> );
+Query OK, 10 rows affected (0.04 sec)
+Records: 10  Duplicates: 0  Warnings: 0
+
+mysql> select * from data;
++-----------------+----------+--------+
+| count_client_id | contract | gender |
++-----------------+----------+--------+
+|               1 |        1 | male   |
+|               1 |        2 | male   |
+|               1 |        3 | male   |
+|               1 |        4 | male   |
+|               2 |        1 | female |
+|               2 |        2 | female |
+|               2 |        3 | female |
+|               3 |        1 | female |
+|               3 |        2 | female |
+|               4 |        1 | male   |
++-----------------+----------+--------+
+10 rows in set (0.00 sec)
+
+
+
+mysql> SET @sql = (SELECT GROUP_CONCAT(DISTINCT CONCAT('count(case WHEN contract = "', contract, '" THEN contract END) as "Количество ', contract,' договоров, оформленных в 2020" '))
+    -> from data
+    -> );
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> SET @sql = concat('select gender, ', @sql, ' from data group by gender');
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> prepare stmt from @sql;
+Query OK, 0 rows affected (0.00 sec)
+Statement prepared
+
+mysql> execute stmt;
++--------+--------------------------------------------+--------------------------------------------+--------------------------------------------+--------------------------------------------+
+| gender | Количество 1 договоров, оформленных в 2020 | Количество 2 договоров, оформленных в 2020 | Количество 3 договоров, оформленных в 2020 | Количество 4 договоров, оформленных в 2020 |
++--------+--------------------------------------------+--------------------------------------------+--------------------------------------------+--------------------------------------------+
+| male   |                                          2 |                                          1 |                                          1 |                                          1 |
+| female |                                          2 |                                          2 |                                          1 |                                          0 |
++--------+--------------------------------------------+--------------------------------------------+--------------------------------------------+--------------------------------------------+
+2 rows in set (0.00 sec)
+
+mysql>
